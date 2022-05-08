@@ -29,10 +29,10 @@ class RedisClient {
   String connectionString;
 
   /// The [RedisConnection] used to communicate with the Redis server.
-  RedisConnection connection;
+  late RedisConnection connection;
 
   /// The future that gets resolved as soon as the connection is available.
-  Future<RedisConnection> connectionFuture;
+  late Future<RedisConnection> connectionFuture;
 
 
   /// Used to serialize and deserialize the values stored inside Redis.
@@ -42,7 +42,7 @@ class RedisClient {
 
 
   /// Returns a [Future] for a [RedisClient].
-  static Future<RedisClient> connect([ String connectionString ]) {
+  static Future<RedisClient> connect([ String connectionString =""]) {
     var redisClient = new RedisClient._(connectionString);
     return redisClient.connectionFuture.then((_) => redisClient);
   }
@@ -270,7 +270,7 @@ class RedisClient {
    * [keys] in your regular application code. If you're looking for a way to find 
    * keys in a subset of your keyspace, consider using sets.
    */
-  Future<List<String>> keys(String pattern) => 
+  Future<List<String>>? keys(String pattern) => 
       connection.sendCommand(RedisCommand.KEYS, [ pattern ])
         .receiveMultiBulkStrings();
 
@@ -278,7 +278,8 @@ class RedisClient {
   Future<String> get(String key) => connection.sendCommand(RedisCommand.GET, [ key ]).receiveBulkString();
 
   /// Returns all the stored values of given keys.
-  Future<List<String>> mget(List<String> keys) => keys.isEmpty ? new Future.value([ ]) : connection.sendCommand(RedisCommand.MGET, keys).receiveMultiBulkStrings();
+  Future<List<String>>? mget(List<String> keys) => keys.isEmpty ? new Future
+      .value([ ]) : connection.sendCommand(RedisCommand.MGET, keys).receiveMultiBulkStrings();
 
   /// Sets the value of given key, and returns the value that was stored previously.
   Future<String> getset(String key, String value) => connection.sendCommand(RedisCommand.GETSET, [ key, value ]).receiveBulkString();
@@ -803,7 +804,7 @@ class RedisClient {
    * 
    * More at: http://redis.io/commands/srandmember
    */
-  Future<dynamic> srandmember(String setId, [int count]) { 
+  Future<dynamic> srandmember(String setId, [int count=0]) { 
     if(count == null) {
       return connection.sendCommand(RedisCommand.SRANDMEMBER, 
         [ setId ]).receiveBulkDeserialized(serializer);
@@ -829,9 +830,10 @@ class RedisClient {
    * 
    * More about sort and patterns: http://redis.io/commands/sort
    */
-  Future<dynamic> sort(String key, {String by,  int skip, int take, 
-    List<String> get, bool desc: false, bool alpha: false, String destination}) {    
-    var hasLimit = false, offsetString, countString, values = []..add(key);
+  Future<dynamic> sort(String key, {required String by,  required int skip, required int take,
+    required List<String> get, bool desc: false, bool alpha: false,required  String destination}) {    
+    var hasLimit = false, offsetString, countString;
+    List<String> values = []..add(key);
     
     if (by != null) values.addAll(['BY', by]);
     
@@ -844,7 +846,7 @@ class RedisClient {
     }
     
     if (get != null) {
-      var getArgs = [];
+      List<String> getArgs = [];
       for (int i = 0 ; i < get.length ; i++) {
         getArgs.add('GET');
         getArgs.add(get[i]);
@@ -1093,7 +1095,7 @@ class RedisClient {
    * empty. If the key exists but does not hold a sorted set, an error is 
    * returned.
    */
-  Future<int> zadd(Object setId, Iterable<ZSetEntry> zset) => 
+  Future<int> zadd(Object setId, Set<ZSetEntry> zset) => 
       connection.sendCommandWithVariadicValues(RedisCommand.ZADD, 
           [ serializer.serializeToString(setId) ], 
           serializer.serializeFromZSet(zset)).receiveInteger();
@@ -1222,9 +1224,9 @@ class RedisClient {
    * 
    * More at: http://redis.io/commands/zrangebyscore
    */
-  Future<dynamic> zrangebyscore(String setId, { num min, num max, 
+  Future<dynamic> zrangebyscore(String setId, { required num min, required num max, 
     bool minExclusive: false, bool maxExclusive: false, 
-    bool withScores: false, int skip, int take}) {
+    bool withScores: false,required  int skip,required  int take}) {
     var hasLimit = false, offsetString, countString;
 
     if (take != null) hasLimit = true;
@@ -1267,9 +1269,9 @@ class RedisClient {
    * 
    * Apart from the reversed ordering, ZREVRANGEBYSCORE is similar to ZRANGEBYSCORE.
    */
-  Future<dynamic> zrevrangebyscore(String setId, { num min, num max, 
+  Future<dynamic> zrevrangebyscore(String setId, {required  num min,required  num max, 
     bool minExclusive: false, bool maxExclusive: false, 
-    bool withScores: false, int skip, int take}) {
+    bool withScores: false,required  int skip,required  int take}) {
     var hasLimit = false, offsetString, countString;
 
     if (take != null) hasLimit = true;
@@ -1326,7 +1328,7 @@ class RedisClient {
    * min and max (inclusive). Since version 2.1.6, min and max can be 
    * exclusive, following the syntax of ZRANGEBYSCORE.
    */
-  Future<int> zremrangebyscore(String setId, { num min, num max, 
+  Future<int> zremrangebyscore(String setId, {required  num min,required  num max, 
     bool minExclusive: false, bool maxExclusive: false}) {    
     return connection.sendCommand(RedisCommand.ZREMRANGEBYSCORE, [ setId, 
       _setMin(min, minExclusive), _setMax(max, maxExclusive)]).receiveInteger();
@@ -1358,7 +1360,7 @@ class RedisClient {
    * More at: http://redis.io/commands/zunionstore
    */  
   Future<int> zunionstore(String destination, List<String> setIds, 
-      { List<int> weights, String aggregate}) {
+      {required  List<int> weights,required  String aggregate}) {
     var numkeys = setIds.length.toString();
     var values = serializer.serializeToList(setIds);
     
@@ -1386,7 +1388,7 @@ class RedisClient {
    * More at: http://redis.io/commands/zunionstore
    */  
   Future<int> zinterstore(String destination, List<String> setIds, 
-      { List<String> weights, String aggregate}) {
+      {required  List<String> weights,required  String aggregate}) {
     var numkeys = setIds.length.toString();
     var values = serializer.serializeToList(setIds);
     
@@ -1543,9 +1545,11 @@ class RedisClient {
   /**
    * Returns list of fields in the hash, or an empty list when key does not exist.
    */
-  Future<List<String>> hkeys(String hashId) => 
-      connection.sendCommand(RedisCommand.HKEYS, [ hashId ])
-        .receiveMultiBulkDeserialized(serializer);
+  Future<List<Object>>? hkeys(String hashId){
+    Receiver result = connection.sendCommand(RedisCommand.HKEYS, [ hashId ]);
+    return result.receiveMultiBulkDeserialized(serializer);
+  }
+      
 
   /**
    * Returns list of values in the hash, or an empty list when key does not 

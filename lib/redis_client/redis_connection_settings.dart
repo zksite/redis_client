@@ -9,7 +9,7 @@ class RedisConnectionSettings {
 
   String hostname = "localhost";
 
-  String password;
+  String? password;
 
   int port = 6379;
 
@@ -19,7 +19,7 @@ class RedisConnectionSettings {
   ///
   /// See the [RedisConnection] class documentation on which connectionStrings
   /// are allowed.
-  RedisConnectionSettings([ String this.connectionString ]) {
+  RedisConnectionSettings([ String this.connectionString='' ]) {
     if (connectionString == null || connectionString.isEmpty) return;
 
     List<String> parts = connectionString.split("@");

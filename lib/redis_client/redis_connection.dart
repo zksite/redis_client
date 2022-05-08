@@ -31,19 +31,19 @@ abstract class RedisConnection {
   /// extruded.
   ///
   /// Once this string has been parsed, it isn't used anymore.
-  String connectionString;
+  late String connectionString;
 
   /// Redis connection hostname
-  String hostname;
+  late String hostname;
 
   /// Redis connection password
-  String password;
+  String? password;
 
   /// Redis connection port
-  int port;
+  late int port;
 
   /// Redis database
-  int db;
+  late int db;
 
   Future auth(String password);
 
@@ -91,14 +91,14 @@ class _RedisConnection extends RedisConnection {
 
   final String hostname;
 
-  final String password;
+  final String? password;
 
   final int port;
 
-  int db;
+  late int db;
 
   /// The [Socket] used in this connection.
-  Socket _socket;
+  late Socket _socket;
 
   /// Handlers for stream transformation from stream of int to stream of RedisReply
   RedisStreamTransformerHandler _streamTransformerHandler = new RedisStreamTransformerHandler();
@@ -108,7 +108,7 @@ class _RedisConnection extends RedisConnection {
   final Completer<RedisConnection> _connectedCompleter = new Completer<RedisConnection>();
 
   /// Gets resolved as soon as the connection is up.
-  Future<RedisConnection> connected;
+  late Future<Socket> connected;
 
 
   /// The character sequence that ends data.
@@ -156,8 +156,8 @@ class _RedisConnection extends RedisConnection {
 
     logger.info("Creating socket connection ($hostname, $port)");
 
-    this.connected = Socket.connect(hostname, port)
-        .then((Socket socket) {
+    this.connected = Socket.connect(hostname, port);
+    connected.then((Socket socket) {
           logger.info("Connected socket");
 
           _socket = socket;
@@ -169,7 +169,7 @@ class _RedisConnection extends RedisConnection {
             .transform(_streamTransformerHandler.createTransformer())
             .listen(_onRedisReply, onError: _onStreamError, onDone: _onStreamDone);
 
-          if (password != null) return _authenticate(password);
+          if (password != null) return _authenticate(password!);
         })
         .then((_) {
           if (db > 0) return select();
@@ -196,13 +196,14 @@ class _RedisConnection extends RedisConnection {
   /// Selects configured database.
   ///
   /// If db is provided the configuration [db] will be set to it.
-  Future select([ int db ]) {
+  Future select([ int db=0 ]) {
     if (db != null) this.db = db;
     return send([ "SELECT", db.toString() ]).receive();
   }
 
   /// Authenticates with configured password.
-  Future _authenticate(String _password) => send([ "AUTH", password ]).receive();
+  Future _authenticate(String _password) => send([ "AUTH", password! ])
+      .receive();
 
 
 
@@ -212,12 +213,12 @@ class _RedisConnection extends RedisConnection {
     throw new RedisClientException("Socket error $err.");
   }
 
-  Function _subscriptionHandler = null;
+  Function? _subscriptionHandler = null;
 
   Future subscribe(List<String> channels, Function onMessage){
 
     Completer subscribeCompleter = new Completer();
-    List<String> args = new List <String>()
+    List<String> args = []
         ..add("SUBSCRIBE")
         ..addAll(channels);
 
@@ -230,7 +231,7 @@ class _RedisConnection extends RedisConnection {
 
   Future unsubscribe(List<String> channels){
     Completer unsubscribeCompleter = new Completer();
-    List<String> args = new List <String>()
+    List<String> args = []
         ..add("UNSUBSCRIBE")
         ..addAll(channels);
 
@@ -248,7 +249,7 @@ class _RedisConnection extends RedisConnection {
     if(_subscriptionHandler != null){
       Receiver rec = new Receiver()
       ..reply = redisReply;
-      _subscriptionHandler(rec);
+      _subscriptionHandler!(rec);
       return;
     }
     if (_pendingResponses.length == 0 || _pendingResponses.last.reply != null) {
@@ -290,7 +291,8 @@ class _RedisConnection extends RedisConnection {
    * This function converts the [String]s to binary data, and forwards to
    * [rawSend].
    */
-  Receiver send(List<String> cmdWithArgs) => rawSend(cmdWithArgs.map((String line) => UTF8.encode(line)).toList(growable: false));
+  Receiver send(List<String> cmdWithArgs) => rawSend(cmdWithArgs.map((String 
+  line) => utf8.encode(line)).toList(growable: false));
 
 
   /**
@@ -299,17 +301,18 @@ class _RedisConnection extends RedisConnection {
    * The command is one of [RedisCommand].
    */
   Receiver sendCommand(List<int> command, List<String> args) {
-    var commands = new List<List<int>>(args.length + 1);
+    List<List<int>> commands = [];
     commands[0] = command;
-    commands.setAll(1, args.map((String line) => UTF8.encode(line)).toList(growable: false));
+    commands.setAll(1, args.map((String line) => utf8.encode(line)).toList(growable: false));
     return rawSend(commands);
   }
 
   Receiver sendCommandWithVariadicValues(List<int> command, List<String> args, List<String> values) {
-    var commands = new List<List<int>>(args.length + values.length + 1);
+    List<List<int>> commands =[];
     commands[0] = command;
-    commands.setAll(1, args.map((String line) => UTF8.encode(line)).toList(growable: false));
-    commands.setAll(args.length + 1, values.map((String line) => UTF8.encode(line)).toList(growable: false));
+    commands.setAll(1, args.map((String line) => utf8.encode(line)).toList
+      (growable: false));
+    commands.setAll(args.length + 1, values.map((String line) => utf8.encode(line)).toList(growable: false));
     return rawSend(commands);
   }
 
@@ -325,11 +328,11 @@ class _RedisConnection extends RedisConnection {
     
    
     if( logger.level <= Level.FINEST){
-      logger.finest("Sending message ${UTF8.decode(cmdWithArgs[0])}");
+      logger.finest("Sending message ${utf8.decode(cmdWithArgs[0])}");
     }
     
     //we call _socket.add only once and we try to avoid string concat
-    List<int> buffer = new List<int>();
+    List<int> buffer = [];
     buffer.addAll("*".codeUnits);
     buffer.addAll(cmdWithArgs.length.toString().codeUnits);
     buffer.addAll(_lineEnd);    
@@ -358,7 +361,7 @@ class _RedisConnection extends RedisConnection {
 class Receiver {
 
   /// Gets set when received.
-  RedisReply _reply;
+  late RedisReply _reply;
 
   RedisReply get reply => _reply;
 
@@ -368,7 +371,7 @@ class Receiver {
     _receivedCompleter.complete(reply);
   }
 
-  Future<RedisReply> _received;
+  late Future<RedisReply> _received;
 
   Completer<RedisReply> _receivedCompleter = new Completer<RedisReply>();
 
@@ -438,7 +441,7 @@ class Receiver {
   /**
    * Checks that the received reply is of type [StatusReply].
    */
-  Future<String> receiveStatus([ String expectedStatus ]) {
+  Future<String> receiveStatus([ String expectedStatus="" ]) {
     return _received.then((reply) {
       if (reply is! StatusReply) {
         var error = "";
@@ -467,7 +470,7 @@ class Receiver {
         }
         throw new RedisClientException("The returned reply was not of type BulkReply but ${reply.runtimeType}.${error}");
       }
-      return reply.bytes;
+      return reply.bytes!;
     });
   }
 
@@ -514,9 +517,12 @@ class Receiver {
    * Checks that the received reply is of type [MultiBulkReply] and returns a list
    * of strings.
    */
-  Future<List<String>> receiveMultiBulkStrings() {
-    return receiveMultiBulk().then((MultiBulkReply reply) {
-      return reply.replies.map((BulkReply reply) => reply.string).toList(growable: false);
+  Future<List<String>>? receiveMultiBulkStrings() {
+    Future<MultiBulkReply> receive = receiveMultiBulk();
+    receive.then((MultiBulkReply reply) {
+      return reply.replies
+          .map((RedisReply reply) => (reply as BulkReply).string)
+          .toList(growable: false);
     });
   }
 
@@ -527,7 +533,8 @@ class Receiver {
   Future<List<Object>> receiveMultiBulkDeserialized(RedisSerializer serializer) {
     return receiveMultiBulk().then((MultiBulkReply reply) {
       return reply.replies.map(
-          (BulkReply reply) => serializer.deserialize(reply.bytes)).toList(growable: false);
+          (RedisReply reply) => serializer.deserialize((reply as BulkReply)
+              .bytes!)).toList(growable: false);
     });
   }
 
@@ -538,7 +545,8 @@ class Receiver {
   Future<Set<Object>> receiveMultiBulkSetDeserialized(RedisSerializer serializer) {
     return receiveMultiBulk().then((MultiBulkReply reply) {
       return reply.replies.map(
-          (BulkReply reply) => serializer.deserialize(reply.bytes)).toSet();
+          (RedisReply reply) => serializer.deserialize((reply as BulkReply)
+              .bytes!)).toSet();
     });
   }
 

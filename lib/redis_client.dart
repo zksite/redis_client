@@ -13,9 +13,9 @@ library redis_client;
 
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'dart:collection';
 import 'dart:typed_data';
-import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 import 'package:logging/logging.dart';

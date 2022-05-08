@@ -6,10 +6,10 @@ part of redis_protocol_transformer;
 abstract class RedisProtocolTransformerException extends Error implements Exception {
 
   /// The error message of this exception.
-  final String message;
+  final String? message;
 
   /// Every subclass can set a base message that will prepend the actual message.
-  String _baseMessage;
+  late String _baseMessage;
 
   RedisProtocolTransformerException([ this.message ]);
 

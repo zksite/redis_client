@@ -14,7 +14,7 @@ abstract class RedisSerializer {
   List<String> serializeToList(Object obj);
 
   Object deserialize(List<int> bytes);
-  Map<String, Object> deserializeToMap(map);
+  Map<String, Object> deserializeToMap(List<RedisReply> replies);
 }
 
 
@@ -37,16 +37,16 @@ class JsonRedisSerializer implements RedisSerializer {
    * Serializes given object into its' String representation and returns the
    * binary of it.
    */
-  List<int> serialize(Object obj) {
-    if (obj == null) return obj;
-    return UTF8.encode(serializeToString(obj));
+  List<int> serialize(Object? obj) {
+    if (obj == null) return [];
+    return utf8.encode(serializeToString(obj));
   }
   
   /**
    * Serializes given object into its' String representation.
    */    
-  String serializeToString(Object obj) {
-    if (obj == null || obj is String) return obj;
+  String serializeToString(dynamic obj) {
+    if (obj is String) return obj;
     else if (obj is DateTime) return "$DATE_PREFIX${obj.millisecondsSinceEpoch}$DATE_SUFFIX";
     else if (obj is Set) return serializeToString(obj.toList());
     else return JSON.encode(obj);
@@ -55,10 +55,10 @@ class JsonRedisSerializer implements RedisSerializer {
   /**
    * Serializes objects into lists of strings.
    */   
-  List<String> serializeToList(Object obj) {
-    if (obj == null) return obj;
+  List<String> serializeToList(Object? obj) {
+    if (obj == null) return [];
     
-    List<String> values = new List();
+    List<String> values = [];
     if (obj is Iterable) {
       values.addAll(obj.map(serializeToString));
     } else if (obj is Map) {
@@ -74,7 +74,7 @@ class JsonRedisSerializer implements RedisSerializer {
   Object deserialize(List<int> deserializable) {
     if (deserializable == null) return deserializable;
     
-    var decodedObject = UTF8.decode(deserializable);
+    var decodedObject = utf8.decode(deserializable);
     try { decodedObject = JSON.decode(decodedObject); } 
     on FormatException catch (e) { }
     
@@ -89,7 +89,7 @@ class JsonRedisSerializer implements RedisSerializer {
 
   
   List<String> serializeFromMap(Map map) {
-    var variadicValueList = new List<String>(map.length * 2);
+    List<String> variadicValueList = [];
     var i = 0;
     map.forEach((key, value) {
       variadicValueList[i++] = serializeToString(key);
@@ -100,7 +100,7 @@ class JsonRedisSerializer implements RedisSerializer {
   }
   
   List<String> serializeFromZSet(Iterable<ZSetEntry> zSet) {
-    var variadicValueList = new List<String>(zSet.length * 2);
+    List<String> variadicValueList = [];
     var i = 0;
     
     zSet.forEach((ZSetEntry zSetEntry) {
@@ -112,10 +112,11 @@ class JsonRedisSerializer implements RedisSerializer {
   }
 
   Map<String, Object> deserializeToMap(List<RedisReply> replies) {
-    var multiBulkMap = new Map<String, Object>();
+    Map<String, Object> multiBulkMap = new Map<String, Object>();
     if (replies.isNotEmpty) {
       for (int i = 0 ; i < replies.length ; i++) {
-        multiBulkMap[deserialize((replies[i] as BulkReply).bytes)] = deserialize((replies[++i] as BulkReply).bytes);
+        String key = deserialize((replies[i] as BulkReply).bytes!) as String;
+        multiBulkMap[key] = deserialize((replies[++i] as BulkReply).bytes!);
       }
     }
     return multiBulkMap;

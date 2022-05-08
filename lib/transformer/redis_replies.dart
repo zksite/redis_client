@@ -29,13 +29,13 @@ class BulkReply extends RedisReply {
 
   String get string {
     if(_dataAsString == null) {
-      _dataAsString = bytes == null? bytes : UTF8.decode(bytes);
+      _dataAsString = bytes == null? '' : utf8.decode(bytes!);
     }
-    return _dataAsString;
+    return _dataAsString??'';
   }
 
-  String _dataAsString;
-  final List<int> bytes;
+  String? _dataAsString;
+   final List<int>? bytes;
 }
 
 class MultiBulkReply extends RedisReply {

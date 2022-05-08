@@ -23,6 +23,8 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
+import 'dart:typed_data';
+
 
 part 'transformer/redis_replies.dart';
 part 'transformer/transformer_exceptions.dart';

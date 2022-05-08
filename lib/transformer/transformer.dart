@@ -3,10 +3,11 @@ part of redis_protocol_transformer;
 
 /// Responsible for transformation from stream of int to stream of RedisReply
 class RedisStreamTransformerHandler {
-
-  StreamTransformer createTransformer() =>
-    new StreamTransformer.fromHandlers(handleData: handleData,
-        handleError: handleError, handleDone: handleDone);
+  StreamTransformer<Uint8List, RedisReply> createTransformer() =>
+      StreamTransformer.fromHandlers(
+          handleData: handleData,
+          handleError: handleError,
+          handleDone: handleDone);
 
   void handleDone(EventSink<RedisReply> output) {
 
@@ -19,11 +20,12 @@ class RedisStreamTransformerHandler {
     output.close();
   }
 
-  void handleError(Object error, StackTrace stackTrace, EventSink<RedisReply> sink) {
+  void handleError(Object error, StackTrace? stackTrace, 
+      EventSink<RedisReply> sink) {
     sink.addError(error, stackTrace);
   }
 
-  void handleData(List<int> data, EventSink<RedisReply> output) {
+  void handleData(Uint8List data, EventSink<RedisReply> output) {
     // I'm not entirely sure this is necessary, but better be safe.
     if (data.length == 0) return;
 
@@ -38,9 +40,9 @@ class RedisStreamTransformerHandler {
           handleError(e, e.stackTrace, output);
         }
       } else {
-        i = _consumer.consume(data, i, end);
-        if(_consumer.done) {
-          output.add(_consumer.makeReply());
+        i = _consumer!.consume(data, i, end);
+        if(_consumer!.done) {
+          output.add(_consumer!.makeReply());
           _consumer = null;
         }
       }
@@ -48,7 +50,7 @@ class RedisStreamTransformerHandler {
   }
 
   /// The current consumer
-  _RedisConsumer _consumer;
+  _RedisConsumer? _consumer;
 }
 
 final int _CR = 13;
@@ -76,7 +78,7 @@ abstract class _RedisConsumer {
 
   bool get done;
 
-  List<int> get data {
+  List<int>? get data {
     assert(done);
 
     if(_data == null) {
@@ -85,7 +87,7 @@ abstract class _RedisConsumer {
       if(dataSize == 0) {
         return _data;
       } else {
-        _data = new List<int>(dataSize - 2);
+        _data = List.empty(growable: true);
         var blocksNeeded = _dataBlocks.length;
         var ignoredCharacters = 2;
         if(_dataBlocks.last.length == 1) {
@@ -101,7 +103,7 @@ abstract class _RedisConsumer {
           bool isLastBlock = blockIndex == blocksNeeded - 1;
           final charsToTake = currentBlock.length - (isLastBlock? ignoredCharacters:0);
 
-          _data.setAll(stringIndex,
+          _data!.setAll(stringIndex,
               isLastBlock?
               currentBlock.take(currentBlock.length - ignoredCharacters) :
               currentBlock);
@@ -118,7 +120,7 @@ abstract class _RedisConsumer {
 
   /// The joined _dataBlocks - lazy initilialized to join via `get data` call
   /// which at that point strips the CR,LF
-  List<int> _data;
+  List<int>? _data;
 
 }
 
@@ -155,11 +157,11 @@ abstract class _LineConsumer extends _RedisConsumer {
     return current;
   }
 
-  String get line => _line == null? (_line = UTF8.decode(data)) : _line;
+  String? get line => _line == null? (_line = utf8.decode(data!)) : _line;
   bool get done => _done;
 
   /// The line data as String
-  String _line;
+  String? _line;
   /// Done reading the single line
   bool _done = false;
 }
@@ -174,7 +176,7 @@ class _BulkConsumer extends _RedisConsumer {
       current = _lineConsumer.consume(data, current, end);
       if(_lineConsumer.done) {
         final specifiedLength =
-          int.parse(new String.fromCharCodes(_lineConsumer.data));
+          int.parse(new String.fromCharCodes(_lineConsumer.data!));
         if(specifiedLength == -1) {
           _lengthRequired = 0;
         } else {
@@ -211,20 +213,20 @@ class _BulkConsumer extends _RedisConsumer {
 
   _LineConsumer _lineConsumer = new _IntegerConsumer();
   int _lengthRead = 0;
-  int _lengthRequired;
+  late int _lengthRequired;
 }
 
 
 class _StatusConsumer extends _LineConsumer {
-  RedisReply makeReply() => new StatusReply(line);
+  RedisReply makeReply() => new StatusReply(line!);
 }
 
 class _ErrorConsumer extends _LineConsumer {
-  RedisReply makeReply() => new ErrorReply(line);
+  RedisReply makeReply() => new ErrorReply(line!);
 }
 
 class _IntegerConsumer extends _LineConsumer {
-  RedisReply makeReply() => new IntegerReply(int.parse(line));
+  RedisReply makeReply() => new IntegerReply(int.parse(line!));
 }
 
 class _MultiBulkConsumer extends _RedisConsumer {
@@ -237,17 +239,17 @@ class _MultiBulkConsumer extends _RedisConsumer {
       current = _lineConsumer.consume(data, current, end);
       if(_lineConsumer.done) {
         final numReplies =
-          int.parse(new String.fromCharCodes(_lineConsumer.data));
-        _replies = new List<RedisReply>(numReplies);
+          int.parse(new String.fromCharCodes(_lineConsumer.data!));
+        _replies = [];
       }
     } else {
       if(_activeConsumer == null) {
         _activeConsumer = _makeRedisConsumer(data[current++]);
       }
       if(current < end) {
-        current = _activeConsumer.consume(data, current, end);
-        if(_activeConsumer.done) {
-          _replies[_repliesReceived++] = _activeConsumer.makeReply();
+        current = _activeConsumer!.consume(data, current, end);
+        if(_activeConsumer!.done) {
+          _replies![_repliesReceived++] = _activeConsumer!.makeReply();
           _activeConsumer = null;
         }
       }
@@ -262,19 +264,19 @@ class _MultiBulkConsumer extends _RedisConsumer {
     return current;
   }
 
-  RedisReply makeReply() => new MultiBulkReply(_replies);
+  RedisReply makeReply() => new MultiBulkReply(_replies!);
 
   /// Consumer is done when all replies have been received
-  bool get done => _replies != null && _replies.length == _repliesReceived;
+  bool get done => _replies != null && _replies!.length == _repliesReceived;
 
   /// Consumer used to get the number of replies in the MultiBulkReply
   _LineConsumer _lineConsumer = new _IntegerConsumer();
 
   /// Consumer for the current reply being processed
-  _RedisConsumer _activeConsumer;
+  _RedisConsumer? _activeConsumer;
 
   /// List of resulting replies in this MultiBulkReply
-  List<RedisReply> _replies;
+  List<RedisReply>? _replies;
 
   int _repliesReceived = 0;
 }
