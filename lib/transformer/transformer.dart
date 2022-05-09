@@ -81,7 +81,7 @@ abstract class _RedisConsumer {
   List<int>? get data {
     assert(done);
 
-    if(_data == null) {
+    if(_data.isEmpty) {
       final dataSize = _dataBlocks.fold(0, (int prevValue, List dataBlock) =>
           prevValue + dataBlock.length);
       if(dataSize == 0) {
@@ -120,7 +120,7 @@ abstract class _RedisConsumer {
 
   /// The joined _dataBlocks - lazy initilialized to join via `get data` call
   /// which at that point strips the CR,LF
-  List<int>? _data;
+  List<int> _data = [];
 
 }
 
@@ -157,7 +157,8 @@ abstract class _LineConsumer extends _RedisConsumer {
     return current;
   }
 
-  String? get line => _line == null? (_line = utf8.decode(data!)) : _line;
+  String? get line => _line == null||_line==''? (_line = utf8.decode(data!)) : 
+  _line;
   bool get done => _done;
 
   /// The line data as String
