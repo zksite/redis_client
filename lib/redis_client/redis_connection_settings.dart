@@ -19,8 +19,8 @@ class RedisConnectionSettings {
   ///
   /// See the [RedisConnection] class documentation on which connectionStrings
   /// are allowed.
-  RedisConnectionSettings([ String this.connectionString='' ]) {
-    if (connectionString == null || connectionString.isEmpty) return;
+  RedisConnectionSettings([String this.connectionString = '']) {
+    if (connectionString.isEmpty) return;
 
     List<String> parts = connectionString.split("@");
 
@@ -37,7 +37,6 @@ class RedisConnectionSettings {
       if (parts.length == 2) db = int.parse(parts.last);
     }
   }
-
 }
 
 

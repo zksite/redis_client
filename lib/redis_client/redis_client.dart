@@ -1594,7 +1594,12 @@ class RedisClient {
   Future publish(String channel, String message) => 
       connection.sendCommand(RedisCommand.PUBLISH, [channel,message])
         .receiveInteger();
-  
+
+  ///get config info 
+  Future<Map<String, Object>> configGet(String config) {
+    return connection.sendCommand(RedisCommand.CONFIG,
+        ["GET", config]).receiveMultiBulkMapDeserialized(serializer);
+  }
 }
 
 

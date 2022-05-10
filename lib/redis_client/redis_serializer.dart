@@ -74,19 +74,25 @@ class JsonRedisSerializer implements RedisSerializer {
   Object deserialize(List<int> deserializable) {
     if (deserializable == null) return deserializable;
     var decodedObject = utf8.decode(deserializable);
-    try { decodedObject = json.decode(decodedObject); } 
-    on FormatException catch (e) { }
-    
+    var n = num.tryParse(decodedObject);
+    if (n != null) {
+      return n;
+    }
+    try {
+      decodedObject = json.decode(decodedObject);
+    } on FormatException catch (e) {}
+
     if (decodedObject is String) {
       if (_isDate(decodedObject)) {
-        int timeSinceEpoch = int.parse(decodedObject.substring(DATE_PREFIX.length, decodedObject.length - DATE_SUFFIX.length));
-        return new DateTime.fromMillisecondsSinceEpoch(timeSinceEpoch, isUtc: true);    
+        int timeSinceEpoch = int.parse(decodedObject.substring(
+            DATE_PREFIX.length, decodedObject.length - DATE_SUFFIX.length));
+        return new DateTime.fromMillisecondsSinceEpoch(timeSinceEpoch,
+            isUtc: true);
       }
-    } 
+    }
     return decodedObject;
   }
 
-  
   List<String> serializeFromMap(Map map) {
     List<String> variadicValueList = [];
     var i = 0;
