@@ -56,11 +56,11 @@ class RedisStreamTransformerHandler {
 final int _CR = 13;
 final int _LF = 10;
 
-const int _STATUS = 43;
-const int _ERROR = 45;
-const int _INTEGER = 58;
-const int _BULK = 36;
-const int _MULTI_BULK = 42;
+const int _STATUS = 43;//+
+const int _ERROR = 45;//-
+const int _INTEGER = 58;//:
+const int _BULK = 36;//$
+const int _MULTI_BULK = 42;//*
 
 /// Establishes base for the consumers of redis data
 ///
@@ -87,7 +87,7 @@ abstract class _RedisConsumer {
       if(dataSize == 0) {
         return _data;
       } else {
-        _data = List.empty(growable: true);
+        _data = List.filled((dataSize - 2), 0);
         var blocksNeeded = _dataBlocks.length;
         var ignoredCharacters = 2;
         if(_dataBlocks.last.length == 1) {
@@ -103,7 +103,7 @@ abstract class _RedisConsumer {
           bool isLastBlock = blockIndex == blocksNeeded - 1;
           final charsToTake = currentBlock.length - (isLastBlock? ignoredCharacters:0);
 
-          _data!.setAll(stringIndex,
+          _data.setAll(stringIndex,
               isLastBlock?
               currentBlock.take(currentBlock.length - ignoredCharacters) :
               currentBlock);
@@ -185,7 +185,7 @@ class _BulkConsumer extends _RedisConsumer {
         }
       }
     } else {
-      final needed = _lengthRequired - _lengthRead;
+      final needed = _lengthRequired! - _lengthRead;
       final desiredEnd = start + needed;
       final takeTo = min(desiredEnd, end);
       _dataBlocks.add(new UnmodifiableListView(data.getRange(start, takeTo)));
@@ -209,12 +209,12 @@ class _BulkConsumer extends _RedisConsumer {
 
   _addToLength(int additional) {
     _lengthRead += additional;
-    assert(_lengthRead <= _lengthRequired);
+    assert(_lengthRead <= _lengthRequired!);
   }
 
   _LineConsumer _lineConsumer = new _IntegerConsumer();
   int _lengthRead = 0;
-  late int _lengthRequired;
+   int? _lengthRequired;
 }
 
 
@@ -241,7 +241,7 @@ class _MultiBulkConsumer extends _RedisConsumer {
       if(_lineConsumer.done) {
         final numReplies =
           int.parse(new String.fromCharCodes(_lineConsumer.data!));
-        _replies = [];
+        _replies = List.filled(numReplies, RedisReply());
       }
     } else {
       if(_activeConsumer == null) {

@@ -270,7 +270,7 @@ class RedisClient {
    * [keys] in your regular application code. If you're looking for a way to find 
    * keys in a subset of your keyspace, consider using sets.
    */
-  Future<List<String>>? keys(String pattern) => 
+  Future<List<String>> keys(String pattern) => 
       connection.sendCommand(RedisCommand.KEYS, [ pattern ])
         .receiveMultiBulkStrings();
 
@@ -830,40 +830,49 @@ class RedisClient {
    * 
    * More about sort and patterns: http://redis.io/commands/sort
    */
-  Future<dynamic> sort(String key, {required String by,  required int skip, required int take,
-    required List<String> get, bool desc: false, bool alpha: false,required  String destination}) {    
+  Future<dynamic> sort(String key,
+      {String? by,
+      int? skip,
+      int? take,
+      List<String>? get,
+      bool desc: false,
+      bool alpha: false,
+      required String destination}) {
     var hasLimit = false, offsetString, countString;
     List<String> values = []..add(key);
-    
+
     if (by != null) values.addAll(['BY', by]);
-    
+
     if (take != null) hasLimit = true;
-    
+
     if (hasLimit) {
-      skip == null ? offsetString = 0.toString() : offsetString = skip.toString();
-      countString = take.toString(); 
+      skip == null
+          ? offsetString = 0.toString()
+          : offsetString = skip.toString();
+      countString = take.toString();
       values.addAll(['LIMIT', offsetString, countString]);
     }
-    
+
     if (get != null) {
       List<String> getArgs = [];
-      for (int i = 0 ; i < get.length ; i++) {
+      for (int i = 0; i < get.length; i++) {
         getArgs.add('GET');
         getArgs.add(get[i]);
       }
       values.addAll(getArgs);
     }
-    
+
     if (alpha) values.add('ALPHA');
-    
+
     if (desc) values.add('DESC');
-    
+
     if (destination != null) {
       values.addAll(['STORE', destination]);
       return connection.sendCommand(RedisCommand.SORT, values).receiveInteger();
     }
-    
-    return connection.sendCommand(RedisCommand.SORT, values)
+
+    return connection
+        .sendCommand(RedisCommand.SORT, values)
         .receiveMultiBulkDeserialized(serializer);
   }
 

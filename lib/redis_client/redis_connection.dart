@@ -301,14 +301,13 @@ class _RedisConnection extends RedisConnection {
    * The command is one of [RedisCommand].
    */
   Receiver sendCommand(List<int> command, List<String> args) {
-    List<List<int>> commands = [];
-    commands[0] = command;
-    commands.setAll(1, args.map((String line) => utf8.encode(line)).toList(growable: false));
+    List<List<int>> commands = [command];
+    commands.addAll(args.map((String line) => utf8.encode(line)).toList(growable: false));
     return rawSend(commands);
   }
 
   Receiver sendCommandWithVariadicValues(List<int> command, List<String> args, List<String> values) {
-    List<List<int>> commands =[];
+    List<List<int>> commands =List.filled(args.length + values.length + 1, []);
     commands[0] = command;
     commands.setAll(1, args.map((String line) => utf8.encode(line)).toList
       (growable: false));
@@ -361,9 +360,9 @@ class _RedisConnection extends RedisConnection {
 class Receiver {
 
   /// Gets set when received.
-  late RedisReply _reply;
+   RedisReply? _reply;
 
-  RedisReply get reply => _reply;
+  RedisReply? get reply => _reply;
 
   /// Will automatically resolve all futures requested with this response.
   void set reply(reply) {
@@ -517,13 +516,10 @@ class Receiver {
    * Checks that the received reply is of type [MultiBulkReply] and returns a list
    * of strings.
    */
-  Future<List<String>>? receiveMultiBulkStrings() {
-    Future<MultiBulkReply> receive = receiveMultiBulk();
-    receive.then((MultiBulkReply reply) {
-      return reply.replies
-          .map((RedisReply reply) => (reply as BulkReply).string)
-          .toList(growable: false);
-    });
+   Future<List<String>> receiveMultiBulkStrings() {
+    return receiveMultiBulk().then((MultiBulkReply reply) => reply.replies
+        .map((RedisReply reply) => (reply as BulkReply).string)
+        .toList(growable: false));
   }
 
   /**
